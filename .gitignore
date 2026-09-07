@@ -1,0 +1,10 @@
+node_modules
+.next
+dist-electron
+.env
+*.log
+*.tsbuildinfo
+coverage
+backups
+*.backup
+.DS_Store
