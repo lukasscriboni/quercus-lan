@@ -9,11 +9,14 @@ const SERVER_PORT = 3210;
 const SERVER_URL = `http://${SERVER_HOST}:${SERVER_PORT}`;
 const HEALTH_URL = `${SERVER_URL}/api/health`;
 const STARTUP_TIMEOUT_MS = 60_000;
+const PRINT_POLL_INTERVAL_MS = 1_000;
 
 let mainWindow = null;
 let serverProcess = null;
 let isQuitting = false;
 let logFilePath = "";
+let printPollTimer = null;
+let printToken = "";
 
 function appendLog(message) {
   if (!logFilePath) return;
@@ -148,6 +151,7 @@ function startServer() {
       NODE_ENV: "production",
       NODE_PATH: buildRuntimeModulePath(runtime.serverRoot),
       PORT: String(SERVER_PORT),
+      QUERCUS_PRINT_TOKEN: printToken,
     },
     stdio: ["ignore", "pipe", "pipe"],
     windowsHide: true,
@@ -162,6 +166,48 @@ function startServer() {
       showStartupError(new Error("El servidor interno de Quercus se detuvo inesperadamente."));
     }
   });
+}
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
+}
+
+function printJobHtml(job) {
+  const rows = job.items.map((item) => `<div class="item"><b>${escapeHtml(item.quantity)} × ${escapeHtml(item.name)}</b>${item.notes ? `<small>NOTA: ${escapeHtml(item.notes)}</small>` : ""}</div>`).join("");
+  return `<!doctype html><html><head><meta charset="utf-8"><style>@page{margin:3mm}body{font-family:Arial,sans-serif;color:#000;margin:0;font-size:13px}.center{text-align:center}h1{font-size:20px;margin:0 0 5px}.meta{border-bottom:1px dashed #000;padding-bottom:7px;margin-bottom:7px}.item{padding:6px 0;border-bottom:1px dashed #777;font-size:15px}.item small{display:block;margin-top:3px;font-weight:bold}.footer{margin-top:8px;font-size:11px}</style></head><body><div class="center meta"><h1>${escapeHtml(job.stationName)}</h1><b>${escapeHtml(job.location)}</b><br>Pedido #${escapeHtml(job.orderNumber)}</div>${rows}<div class="center footer">${escapeHtml(new Date(job.createdAt).toLocaleString("es-AR"))}<br>Ingresó: ${escapeHtml(job.openedBy)}</div></body></html>`;
+}
+
+async function printKitchenJob(job) {
+  const printWindow = new BrowserWindow({ show: false, webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true } });
+  try {
+    await printWindow.loadURL(`data:text/html;charset=UTF-8,${encodeURIComponent(printJobHtml(job))}`);
+    const printers = await printWindow.webContents.getPrintersAsync();
+    const configuredName = job.stationType === "BAR" ? process.env.QUERCUS_BAR_PRINTER : process.env.QUERCUS_KITCHEN_PRINTER;
+    const printer = configuredName ? printers.find((candidate) => candidate.name.toLocaleLowerCase() === configuredName.toLocaleLowerCase()) : printers.find((candidate) => candidate.isDefault);
+    if (configuredName && !printer) throw new Error(`No se encontró la ticketera configurada: ${configuredName}`);
+    await new Promise((resolve, reject) => printWindow.webContents.print({ silent: true, printBackground: true, deviceName: printer?.name }, (success, reason) => success ? resolve() : reject(new Error(reason || "La impresión fue rechazada"))));
+    appendLog(`Comanda ${job.orderNumber} enviada a ${printer?.name || "impresora predeterminada"} (${job.stationType}).`);
+  } finally {
+    if (!printWindow.isDestroyed()) printWindow.destroy();
+  }
+}
+
+function pollKitchenPrintJobs() {
+  const request = http.get(`${SERVER_URL}/api/internal/kitchen-print-jobs`, { headers: { "x-quercus-print-token": printToken }, timeout: 2_000 }, (response) => {
+    let body = "";
+    response.setEncoding("utf8");
+    response.on("data", (chunk) => { body += chunk; });
+    response.on("end", async () => {
+      try {
+        const payload = JSON.parse(body);
+        for (const job of payload.jobs ?? []) await printKitchenJob(job);
+      } catch (error) {
+        appendLog(`[impresion:error] ${error.stack || error.message}`);
+      }
+    });
+  });
+  request.on("timeout", () => request.destroy());
+  request.on("error", (error) => appendLog(`[impresion:conexion] ${error.message}`));
 }
 
 function stopServer() {
@@ -290,6 +336,7 @@ async function startApplication() {
   logFilePath = path.join(app.getPath("userData"), "quercus-server.log");
   fs.mkdirSync(path.dirname(logFilePath), { recursive: true });
   appendLog(`Inicio de Quercus Desktop ${app.getVersion()}`);
+  printToken = `${Date.now()}-${Math.random().toString(36).slice(2)}-${process.pid}`;
 
   Menu.setApplicationMenu(null);
   createMainWindow();
@@ -297,6 +344,7 @@ async function startApplication() {
   try {
     startServer();
     await waitForServer(STARTUP_TIMEOUT_MS);
+    printPollTimer = setInterval(pollKitchenPrintJobs, PRINT_POLL_INTERVAL_MS);
     appendLog("Servidor disponible; abriendo la interfaz.");
     if (mainWindow && !mainWindow.isDestroyed()) {
       await mainWindow.loadURL(`${SERVER_URL}/login`);
@@ -322,6 +370,7 @@ if (!hasSingleInstanceLock) {
 
 app.on("before-quit", () => {
   isQuitting = true;
+  if (printPollTimer) clearInterval(printPollTimer);
   stopServer();
 });
 

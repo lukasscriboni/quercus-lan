@@ -16,9 +16,17 @@ describe("búsqueda flexible de productos", () => {
     expect(matchesProductSearch({ name: "Café frío en lata" }, "FRI caf")).toBe(true);
   });
 
-  it("también busca por fragmentos de SKU y código de barras", () => {
-    expect(matchesProductSearch(product, "473 cr")).toBe(true);
+  it("busca por código de barras pero no por SKU", () => {
     expect(matchesProductSearch(product, "67890")).toBe(true);
+    expect(matchesProductSearch(product, "CR-LAT-473")).toBe(false);
+  });
+
+  it("separa estrictamente el modo nombre del modo código de barras", () => {
+    expect(matchesProductSearch(product, "crafter", "name")).toBe(true);
+    expect(matchesProductSearch(product, "779123", "name")).toBe(false);
+    expect(matchesProductSearch(product, "779123", "barcode")).toBe(false);
+    expect(matchesProductSearch(product, "7791234567890", "barcode")).toBe(true);
+    expect(matchesProductSearch(product, "crafter", "barcode")).toBe(false);
   });
 
   it("exige que todos los fragmentos escritos coincidan", () => {

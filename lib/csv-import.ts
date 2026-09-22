@@ -1,5 +1,6 @@
 import Papa from "papaparse";
 import { cleanText, normalizeText, parseArgentineNumber, parseBoolean } from "./normalize";
+import { isValidProductPrice } from "./pricing-rules";
 
 export const IMPORT_FIELDS = [
   "ignore",
@@ -184,6 +185,7 @@ export function prepareRows(rows: Record<string, string>[], mapping: ColumnMappi
     const taxRate = parseField("taxRate", 21);
     const invalid = [
       [price === null || price < 0, "Precio inválido"],
+      [price !== null && price >= 0 && !isValidProductPrice(price), "El precio debe ser un múltiplo de $100"],
       [cost === null || cost < 0, "Costo inválido"],
       [stock === null || (stock !== undefined && stock < 0), "Stock negativo o inválido"],
       [minimum === null || minimum < 0, "Stock mínimo inválido"],

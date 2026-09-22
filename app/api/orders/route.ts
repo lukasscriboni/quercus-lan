@@ -8,7 +8,7 @@ import { publishEvent } from "@/lib/realtime";
 const schema = z.object({
   diningTableId: z.string().min(1),
   tableVersion: z.coerce.number().int().positive(),
-  guestCount: z.coerce.number().int().min(1).max(50),
+  guestCount: z.coerce.number().int().min(1).max(50).default(1),
   notes: z.string().trim().max(500).nullable().optional(),
 });
 
@@ -16,7 +16,7 @@ export async function POST(request: Request) {
   const auth = await requireApiUser(PERMISSIONS.ORDERS_WRITE);
   if ("error" in auth) return auth.error;
   const parsed = schema.safeParse(await request.json());
-  if (!parsed.success) return Response.json({ error: "Indicá una cantidad válida de personas" }, { status: 400 });
+  if (!parsed.success) return Response.json({ error: "No se pudieron validar los datos de la mesa" }, { status: 400 });
   try {
     const order = await serializable(async (tx) => {
       const table = await tx.diningTable.findFirst({

@@ -1,4 +1,4 @@
-import { OrderItemStatus, OrderStatus, OrderType } from "@prisma/client";
+import { KitchenTicketStatus, OrderItemStatus, OrderStatus, OrderType } from "@prisma/client";
 import { requireApiUser } from "@/lib/auth";
 import { serializable } from "@/lib/order-service";
 import { applyOrderStockDelta } from "@/lib/order-stock";
@@ -19,7 +19,7 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
         include: { items: { where: { status: { not: OrderItemStatus.CANCELLED } } } },
       });
       if (!order) throw new Error("NOT_FOUND");
-      if (order.status !== OrderStatus.OPEN && order.status !== OrderStatus.IN_PROGRESS) throw new Error("NOT_EDITABLE");
+      if (![OrderStatus.OPEN, OrderStatus.IN_PROGRESS, OrderStatus.READY].some((status) => status === order.status)) throw new Error("NOT_EDITABLE");
       if (order.version !== version) throw new Error("CONFLICT");
 
       let stockChanged = false;
@@ -35,11 +35,15 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
         })) || stockChanged;
       }
       const changed = await tx.order.updateMany({
-        where: { id: order.id, version, status: { in: [OrderStatus.OPEN, OrderStatus.IN_PROGRESS] } },
+        where: { id: order.id, version, status: { in: [OrderStatus.OPEN, OrderStatus.IN_PROGRESS, OrderStatus.READY] } },
         data: { status: OrderStatus.CANCELLED, closedAt: new Date(), version: { increment: 1 } },
       });
       if (changed.count !== 1) throw new Error("CONFLICT");
       await tx.orderItem.updateMany({ where: { orderId: order.id }, data: { status: OrderItemStatus.CANCELLED } });
+      await tx.kitchenTicket.updateMany({
+        where: { orderId: order.id, status: { notIn: [KitchenTicketStatus.DELIVERED, KitchenTicketStatus.CANCELLED] } },
+        data: { status: KitchenTicketStatus.CANCELLED, version: { increment: 1 } },
+      });
       await tx.auditLog.create({
         data: {
           organizationId: auth.user.organizationId,
@@ -54,6 +58,7 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
       return { orderId: order.id, stockChanged };
     });
     publishEvent("orders.changed", { orderId: result.orderId });
+    publishEvent("kitchen.changed", { orderId: result.orderId });
     if (result.stockChanged) publishEvent("stock.changed", { orderId: result.orderId });
     return Response.json({ success: true });
   } catch (error) {

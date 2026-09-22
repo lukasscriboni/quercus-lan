@@ -8,8 +8,9 @@ export async function GET(request: Request) {
   if ("error" in auth) return auth.error;
   const url = new URL(request.url);
   const q = url.searchParams.get("q")?.trim();
+  const searchMode = url.searchParams.get("searchMode") === "barcode" ? "barcode" : "name";
   const categoryId = url.searchParams.get("categoryId")?.trim();
-  const searchFilters = productSearchFilters(q);
+  const searchFilters = productSearchFilters(q, searchMode);
   const [categories, products] = await Promise.all([
     db.category.findMany({
       where: { organizationId: auth.user.organizationId, isActive: true },
@@ -25,11 +26,27 @@ export async function GET(request: Request) {
       },
       orderBy: [{ category: { sortOrder: "asc" } }, { name: "asc" }],
       take: 80,
-      select: { id: true, name: true, sku: true, price: true, categoryId: true, category: { select: { name: true } } },
+      select: {
+        id: true,
+        name: true,
+        sku: true,
+        price: true,
+        categoryId: true,
+        category: { select: { name: true } },
+        kitchenStation: { select: { name: true } },
+      },
     }),
   ]);
   return Response.json({
     categories,
-    products: products.map((product) => ({ ...product, price: product.price.toString(), categoryName: product.category?.name ?? "Sin categoría", category: undefined })),
+    products: products.map((product) => ({
+      id: product.id,
+      name: product.name,
+      sku: product.sku,
+      price: product.price.toString(),
+      categoryId: product.categoryId,
+      categoryName: product.category?.name ?? "Sin categoría",
+      kitchenStationName: product.kitchenStation?.name ?? null,
+    })),
   });
 }

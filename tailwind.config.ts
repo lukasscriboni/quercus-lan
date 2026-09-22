@@ -5,12 +5,13 @@ export default {
   theme: {
     extend: {
       colors: {
-        ink: "#101715",
-        panel: "#18211e",
-        line: "#2a3632",
-        cream: "#f4efe4",
-        amber: "#e6a63a",
-        mint: "#89c9aa",
+        ink: "#080808",
+        panel: "#171717",
+        "panel-soft": "#202020",
+        line: "#343434",
+        cream: "#ededed",
+        amber: "#d1d1d1",
+        mint: "#aaaaaa",
         danger: "#ef765f"
       },
       boxShadow: { glow: "0 14px 40px rgba(0,0,0,.24)" },

@@ -4,6 +4,7 @@ import { requireApiUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { normalizeText } from "@/lib/normalize";
 import { PERMISSIONS } from "@/lib/permissions";
+import { isValidProductPrice } from "@/lib/pricing-rules";
 import { productSearchFilters } from "@/lib/product-search";
 import { publishEvent } from "@/lib/realtime";
 
@@ -12,7 +13,8 @@ const productSchema = z.object({
   sku: z.string().trim().max(80).optional().or(z.literal("")),
   barcode: z.string().trim().max(80).optional().or(z.literal("")),
   categoryId: z.string().trim().optional().or(z.literal("")),
-  price: z.coerce.number().min(0),
+  kitchenStationId: z.string().trim().optional().or(z.literal("")),
+  price: z.coerce.number().refine(isValidProductPrice, "El precio debe ser un múltiplo de $100"),
   cost: z.coerce.number().min(0).default(0),
   taxRate: z.coerce.number().min(0).max(100).default(21),
   stockMode: z.enum(["NONE", "DIRECT", "RECIPE"]).default("NONE"),
@@ -27,13 +29,14 @@ export async function GET(request: Request) {
   const page = Math.max(1, Number(url.searchParams.get("page") ?? 1));
   const pageSize = Math.min(100, Math.max(10, Number(url.searchParams.get("pageSize") ?? 30)));
   const q = url.searchParams.get("q")?.trim();
+  const searchMode = url.searchParams.get("searchMode") === "barcode" ? "barcode" : "name";
   const categoryId = url.searchParams.get("categoryId")?.trim();
   const supplierId = url.searchParams.get("supplierId")?.trim();
   const parsedSort = z.enum(["name", "stock", "price", "sku"]).safeParse(url.searchParams.get("sortBy"));
   const parsedDirection = z.enum(["asc", "desc"]).safeParse(url.searchParams.get("sortDirection"));
   const sortBy = parsedSort.success ? parsedSort.data : "name";
   const sortDirection = parsedDirection.success ? parsedDirection.data : "asc";
-  const combinedFilters: Prisma.ProductWhereInput[] = productSearchFilters(q);
+  const combinedFilters: Prisma.ProductWhereInput[] = productSearchFilters(q, searchMode);
   if (supplierId && supplierId !== "UNASSIGNED") {
     combinedFilters.push({ OR: [{ supplierId }, { stockMovements: { some: { referenceType: "SUPPLIER", referenceId: supplierId } } }] });
   }
@@ -46,7 +49,7 @@ export async function GET(request: Request) {
       : {}),
     ...(combinedFilters.length ? { AND: combinedFilters } : {}),
   };
-  const include = { category: { select: { id: true, name: true } }, stocks: { select: { quantity: true, warehouseId: true } } } as const;
+  const include = { category: { select: { id: true, name: true } }, kitchenStation: { select: { id: true, name: true, type: true } }, stocks: { select: { quantity: true, minimum: true, warehouseId: true } } } as const;
 
   if (sortBy === "stock") {
     const stockRows = await db.product.findMany({
@@ -91,9 +94,13 @@ export async function POST(request: Request) {
   const auth = await requireApiUser(PERMISSIONS.PRODUCTS_WRITE);
   if ("error" in auth) return auth.error;
   const parsed = productSchema.safeParse(await request.json());
-  if (!parsed.success) return Response.json({ error: "Revisá los datos del producto", details: parsed.error.flatten() }, { status: 400 });
+  if (!parsed.success) return Response.json({ error: parsed.error.issues.find((issue) => issue.path[0] === "price")?.message ?? "Revisá los datos del producto", details: parsed.error.flatten() }, { status: 400 });
   const data = parsed.data;
   try {
+    if (data.kitchenStationId) {
+      const station = await db.kitchenStation.findFirst({ where: { id: data.kitchenStationId, branch: { organizationId: auth.user.organizationId }, isActive: true } });
+      if (!station) return Response.json({ error: "La estación de comanda no es válida" }, { status: 400 });
+    }
     const product = await db.product.create({
       data: {
         organizationId: auth.user.organizationId,
@@ -103,6 +110,7 @@ export async function POST(request: Request) {
         normalizedSku: data.sku ? normalizeText(data.sku) : null,
         barcode: data.barcode || null,
         categoryId: data.categoryId || null,
+        kitchenStationId: data.kitchenStationId || null,
         price: data.price,
         cost: data.cost,
         taxRate: data.taxRate,

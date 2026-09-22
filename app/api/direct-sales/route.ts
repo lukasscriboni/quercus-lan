@@ -20,7 +20,7 @@ export async function GET() {
   });
   if (!branch) return Response.json({ error: "No hay una sucursal configurada" }, { status: 404 });
   const orders = await db.order.findMany({
-    where: { branchId: branch.id, type: OrderType.COUNTER, status: { in: [...ACTIVE_ORDER_STATUSES] } },
+    where: { branchId: branch.id, type: OrderType.COUNTER, currentAccountId: null, status: { in: [...ACTIVE_ORDER_STATUSES] } },
     orderBy: { openedAt: "desc" },
     include: orderDetailsInclude,
   });

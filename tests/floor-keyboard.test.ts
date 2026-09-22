@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { findDirectionalTable, type NavigableTable } from "../lib/floor-keyboard";
+import { findDirectionalTable, shouldAutoOpenTable, type NavigableTable } from "../lib/floor-keyboard";
 
 const tables: NavigableTable[] = [
   { id: "top-left", x: 0, y: 0, width: 100, height: 80 },
@@ -25,5 +25,11 @@ describe("navegacion de mesas con teclado", () => {
 
   it("mantiene la seleccion si no hay una mesa en esa direccion", () => {
     expect(findDirectionalTable(tables, "top-left", "ArrowLeft")?.id).toBe("top-left");
+  });
+
+  it("solo abre automáticamente una mesa libre y sin cuenta", () => {
+    expect(shouldAutoOpenTable({ status: "AVAILABLE", activeOrder: null })).toBe(true);
+    expect(shouldAutoOpenTable({ status: "OCCUPIED", activeOrder: { id: "order-1" } })).toBe(false);
+    expect(shouldAutoOpenTable({ status: "DISABLED", activeOrder: null })).toBe(false);
   });
 });

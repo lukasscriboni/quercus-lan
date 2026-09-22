@@ -133,6 +133,11 @@ enum PaymentStatus {
   REFUNDED
 }
 
+enum CurrentAccountHolderType {
+  CUSTOMER
+  EMPLOYEE
+}
+
 enum PurchaseOrderStatus {
   DRAFT
   ORDERED
@@ -186,6 +191,7 @@ model Branch {
   reservations    Reservation[]
   employees       Employee[]
   salesReports    SalesReport[]
+  currentAccounts CurrentAccount[]
 
   @@unique([organizationId, name])
 }
@@ -271,6 +277,7 @@ model Employee {
   updatedAt DateTime @updatedAt
   branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
   user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  currentAccounts CurrentAccount[]
 
   @@index([branchId, isActive])
 }
@@ -508,6 +515,7 @@ model Order {
   branchId       String
   diningTableId  String?
   customerId     String?
+  currentAccountId String?
   openedById     String
   number         Int
   type           OrderType
@@ -518,12 +526,14 @@ model Order {
   tax            Decimal         @default(0) @db.Decimal(12, 2)
   total          Decimal         @default(0) @db.Decimal(12, 2)
   notes          String?
+  internalLabel  String?
   version        Int             @default(1)
   openedAt       DateTime        @default(now())
   closedAt       DateTime?
   branch         Branch          @relation(fields: [branchId], references: [id], onDelete: Restrict)
   diningTable    DiningTable?    @relation(fields: [diningTableId], references: [id], onDelete: SetNull)
   customer       Customer?       @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  currentAccount CurrentAccount? @relation(fields: [currentAccountId], references: [id], onDelete: SetNull)
   openedBy       User            @relation(fields: [openedById], references: [id], onDelete: Restrict)
   items          OrderItem[]
   kitchenTickets KitchenTicket[]
@@ -532,6 +542,7 @@ model Order {
   @@unique([branchId, number])
   @@index([branchId, status, openedAt])
   @@index([diningTableId, status])
+  @@index([currentAccountId, status])
 }
 
 model OrderItem {
@@ -807,9 +818,32 @@ model Customer {
   addresses      CustomerAddress[]
   orders         Order[]
   reservations   Reservation[]
+  currentAccounts CurrentAccount[]
 
   @@index([organizationId, name])
   @@index([organizationId, phone])
+}
+
+model CurrentAccount {
+  id             String                   @id @default(cuid())
+  branchId       String
+  customerId     String?
+  employeeId     String?
+  holderType     CurrentAccountHolderType
+  name           String
+  phone          String?
+  notes          String?
+  isActive       Boolean                  @default(true)
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+  branch         Branch                   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  customer       Customer?                @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  employee       Employee?                @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  orders         Order[]
+
+  @@index([branchId, isActive, name])
+  @@index([customerId])
+  @@index([employeeId])
 }
 
 model CustomerAddress {

@@ -8,10 +8,11 @@ export async function GET(request: Request) {
   if ("error" in auth) return auth.error;
   const url = new URL(request.url);
   const q = url.searchParams.get("q")?.trim();
+  const searchMode = url.searchParams.get("searchMode") === "barcode" ? "barcode" : "name";
   const warehouseId = url.searchParams.get("warehouseId") || undefined;
   const page = Math.max(1, Number(url.searchParams.get("page") ?? 1));
   const pageSize = Math.min(100, Math.max(10, Number(url.searchParams.get("pageSize") ?? 40)));
-  const searchFilters = productSearchFilters(q);
+  const searchFilters = productSearchFilters(q, searchMode);
   const where = {
     organizationId: auth.user.organizationId,
     isActive: true,

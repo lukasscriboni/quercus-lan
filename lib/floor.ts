@@ -1,5 +1,5 @@
-export const FLOOR_CANVAS_WIDTH = 1100;
-export const FLOOR_CANVAS_HEIGHT = 650;
+export const FLOOR_CANVAS_WIDTH = 700;
+export const FLOOR_CANVAS_HEIGHT = 1000;
 export const FLOOR_GRID_SIZE = 20;
 
 export type FloorRect = {

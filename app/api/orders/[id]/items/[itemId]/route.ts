@@ -1,6 +1,7 @@
 import { OrderStatus, Prisma } from "@prisma/client";
 import { z } from "zod";
 import { requireApiUser } from "@/lib/auth";
+import { removePendingKitchenItem, syncPendingKitchenQuantity } from "@/lib/kitchen";
 import { lineTotal, recalculateOrder, serializable, serializeOrder } from "@/lib/order-service";
 import { applyOrderStockDelta } from "@/lib/order-stock";
 import { PERMISSIONS } from "@/lib/permissions";
@@ -21,13 +22,14 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
     const result = await serializable(async (tx) => {
       const item = await tx.orderItem.findFirst({ where: { id: itemId, orderId: id, order: { branch: { organizationId: auth.user.organizationId } } }, include: { order: true } });
       if (!item) throw new Error("NOT_FOUND");
-      if (item.order.status !== OrderStatus.OPEN && item.order.status !== OrderStatus.IN_PROGRESS) throw new Error("NOT_EDITABLE");
+      if (![OrderStatus.OPEN, OrderStatus.IN_PROGRESS, OrderStatus.READY].some((status) => status === item.order.status)) throw new Error("NOT_EDITABLE");
       const quantity = new Prisma.Decimal(parsed.data.quantity);
       const changed = await tx.orderItem.updateMany({
         where: { id: itemId, version: parsed.data.version },
         data: { quantity, total: lineTotal(item.unitPrice, quantity, item.discount), version: { increment: 1 } },
       });
       if (changed.count !== 1) throw new Error("CONFLICT");
+      await syncPendingKitchenQuantity(tx, item.id, quantity);
       const stockChanged = await applyOrderStockDelta(tx, {
         branchId: item.order.branchId,
         orderId: id,
@@ -41,11 +43,11 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
       await tx.auditLog.create({
         data: { organizationId: auth.user.organizationId, userId: auth.user.id, action: "ORDER_ITEM_QUANTITY_CHANGED", entityType: "OrderItem", entityId: itemId, before: { quantity: item.quantity.toString() }, after: { quantity: quantity.toString() }, metadata: { orderId: id } },
       });
-      return { order: updated, stockChanged };
+      return { order: updated, stockChanged, kitchenChanged: Boolean(item.kitchenStationId) };
     });
     publishEvent("orders.changed", { orderId: id, tableId: result.order.diningTableId ?? undefined });
-    publishEvent("floor.changed", { tableId: result.order.diningTableId ?? undefined });
     if (result.stockChanged) publishEvent("stock.changed", { orderId: id });
+    if (result.kitchenChanged) publishEvent("kitchen.changed", { orderId: id });
     return Response.json({ order: serializeOrder(result.order) });
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
@@ -54,6 +56,7 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
     if (message === "CONFLICT") return Response.json({ error: "La consumición cambió en otra terminal" }, { status: 409 });
     if (message === "WAREHOUSE_NOT_FOUND") return Response.json({ error: "No hay una ubicación de stock configurada" }, { status: 409 });
     if (message === "STOCK_CONFLICT") return Response.json({ error: "El stock cambió en otra terminal. Volvé a intentar." }, { status: 409 });
+    if (message === "KITCHEN_LOCKED") return Response.json({ error: "La cantidad no puede cambiar porque cocina ya comenzó a prepararla" }, { status: 409 });
     return Response.json({ error: "No se pudo cambiar la cantidad" }, { status: 409 });
   }
 }
@@ -67,8 +70,9 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
     const result = await serializable(async (tx) => {
       const item = await tx.orderItem.findFirst({ where: { id: itemId, orderId: id, order: { branch: { organizationId: auth.user.organizationId } } }, include: { order: true } });
       if (!item) throw new Error("NOT_FOUND");
-      if (item.order.status !== OrderStatus.OPEN && item.order.status !== OrderStatus.IN_PROGRESS) throw new Error("NOT_EDITABLE");
+      if (![OrderStatus.OPEN, OrderStatus.IN_PROGRESS, OrderStatus.READY].some((status) => status === item.order.status)) throw new Error("NOT_EDITABLE");
       if (!Number.isInteger(version) || version !== item.version) throw new Error("CONFLICT");
+      await removePendingKitchenItem(tx, item.id);
       const stockChanged = await applyOrderStockDelta(tx, {
         branchId: item.order.branchId,
         orderId: id,
@@ -83,11 +87,11 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
       await tx.auditLog.create({
         data: { organizationId: auth.user.organizationId, userId: auth.user.id, action: "ORDER_ITEM_REMOVED", entityType: "OrderItem", entityId: itemId, before: { name: item.nameSnapshot, quantity: item.quantity.toString(), total: item.total.toString() }, metadata: { orderId: id } },
       });
-      return { order: updated, stockChanged };
+      return { order: updated, stockChanged, kitchenChanged: Boolean(item.kitchenStationId) };
     });
     publishEvent("orders.changed", { orderId: id, tableId: result.order.diningTableId ?? undefined });
-    publishEvent("floor.changed", { tableId: result.order.diningTableId ?? undefined });
     if (result.stockChanged) publishEvent("stock.changed", { orderId: id });
+    if (result.kitchenChanged) publishEvent("kitchen.changed", { orderId: id });
     return Response.json({ order: serializeOrder(result.order) });
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
@@ -96,6 +100,7 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
     if (message === "CONFLICT") return Response.json({ error: "La consumición cambió en otra terminal" }, { status: 409 });
     if (message === "WAREHOUSE_NOT_FOUND") return Response.json({ error: "No hay una ubicación de stock configurada" }, { status: 409 });
     if (message === "STOCK_CONFLICT") return Response.json({ error: "El stock cambió en otra terminal. Volvé a intentar." }, { status: 409 });
+    if (message === "KITCHEN_LOCKED") return Response.json({ error: "No se puede quitar porque cocina ya comenzó a prepararla" }, { status: 409 });
     return Response.json({ error: "No se pudo quitar la consumición" }, { status: 409 });
   }
 }

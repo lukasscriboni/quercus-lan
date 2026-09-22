@@ -11,6 +11,7 @@ import { requireApiUser } from "@/lib/auth";
 import { calculateDiscount } from "@/lib/discount";
 import { ACTIVE_ORDER_STATUSES, orderDetailsInclude, serializable, serializeOrder } from "@/lib/order-service";
 import { PERMISSIONS } from "@/lib/permissions";
+import { roundDownToPriceStep } from "@/lib/pricing";
 import { publishEvent } from "@/lib/realtime";
 
 const schema = z.object({
@@ -58,11 +59,13 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       if (previousPayment) throw new Error("ALREADY_PAID");
 
       const discountResult = calculateDiscount(order.subtotal, parsed.data.discountType, parsed.data.discountValue);
-      const finalTotal = discountResult.total.add(order.tax).toDecimalPlaces(2);
+      const beforeTaxRounding = discountResult.total.add(order.tax).toDecimalPlaces(2);
+      const finalTotal = parsed.data.discountType === "NONE" ? beforeTaxRounding : roundDownToPriceStep(beforeTaxRounding);
+      const appliedDiscount = order.subtotal.add(order.tax).sub(finalTotal);
 
       const changed = await tx.order.updateMany({
         where: { id: order.id, version: parsed.data.orderVersion, status: { in: [...ACTIVE_ORDER_STATUSES] } },
-        data: { status: OrderStatus.PAID, discount: discountResult.discount, total: finalTotal, closedAt: new Date(), version: { increment: 1 } },
+        data: { status: OrderStatus.PAID, discount: appliedDiscount, total: finalTotal, closedAt: new Date(), version: { increment: 1 } },
       });
       if (changed.count !== 1) throw new Error("ORDER_CONFLICT");
       const shiftChanged = await tx.cashShift.updateMany({
@@ -106,7 +109,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
           entityType: "Order",
           entityId: order.id,
           before: { status: order.status, version: order.version },
-          after: { status: OrderStatus.PAID, subtotal: order.subtotal.toString(), discount: discountResult.discount.toString(), total: finalTotal.toString(), paymentMethod: method.name, cashShiftId: shift.id },
+          after: { status: OrderStatus.PAID, subtotal: order.subtotal.toString(), discount: appliedDiscount.toString(), total: finalTotal.toString(), paymentMethod: method.name, cashShiftId: shift.id },
           metadata: { paymentId: payment.id, tableId: order.diningTableId, stockUpdatedWithOrderItems: true },
         },
       });

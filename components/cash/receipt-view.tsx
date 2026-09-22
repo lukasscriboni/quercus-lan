@@ -37,7 +37,7 @@ export function ReceiptView({ receipt, autoPrint }: { receipt: Receipt; autoPrin
   }
 
   return (
-    <main className="receipt-screen min-h-screen bg-[#0d1412] px-4 py-8 text-[#171b19] sm:py-12">
+    <main className="receipt-screen min-h-screen bg-[#0c0c0c] px-4 py-8 text-[#171b19] sm:py-12">
       <div className="no-print mx-auto mb-4 flex w-full max-w-[420px] items-center justify-between gap-3">
         <button type="button" onClick={goBack} className="button-secondary"><ArrowLeft className="h-4 w-4" />Volver</button>
         <button type="button" onClick={() => window.print()} className="button-primary"><Printer className="h-4 w-4" />Imprimir recibo</button>
@@ -47,7 +47,7 @@ export function ReceiptView({ receipt, autoPrint }: { receipt: Receipt; autoPrin
         <header className="border-b-2 border-dashed border-[#b8b8b8] pb-5 text-center">
           <p className="text-2xl font-black uppercase tracking-[.12em]">Quercus</p>
           <p className="mt-2 text-sm font-bold">{receipt.branchName}</p>
-          {receipt.branchAddress && <p className="mt-1 text-xs text-[#505653]">{receipt.branchAddress}</p>}
+          {receipt.branchAddress && <p className="mt-1 text-xs text-[#545454]">{receipt.branchAddress}</p>}
           <p className="mt-3 text-[10px] font-bold uppercase tracking-[.12em] text-[#676c69]">Comprobante interno · No fiscal</p>
         </header>
 
@@ -59,8 +59,10 @@ export function ReceiptView({ receipt, autoPrint }: { receipt: Receipt; autoPrin
         </section>
 
         <section className="border-b-2 border-dashed border-[#b8b8b8] py-4">
-          <div className="mb-3 grid grid-cols-[1fr_auto] gap-3 text-[10px] font-black uppercase tracking-wider text-[#626865]"><span>Detalle</span><span>Importe</span></div>
-          <div className="space-y-3">{receipt.items.map((item) => <div key={item.id} className="grid grid-cols-[1fr_auto] gap-3 text-xs"><div><p className="font-bold">{item.name}</p><p className="mt-0.5 text-[10px] text-[#686e6b]">{item.quantity.toLocaleString("es-AR")} × {money.format(item.unitPrice)}</p></div><p className="font-bold">{money.format(item.total)}</p></div>)}</div>
+          <div className="mb-3 grid grid-cols-[1fr_auto] gap-3 text-[10px] font-black uppercase tracking-wider text-[#666666]"><span>Detalle</span><span>Importe</span></div>
+          <div className="space-y-3">{receipt.items.map((item) => <div key={item.id} className="grid grid-cols-[1fr_auto] gap-3 text-xs"><div><p className="font-bold">{item.name}</p><p className="mt-0.5 text-[10px] text-[#6c6c6c]">{item.quantity.toLocaleString("es-AR")} × {money.format(item.unitPrice)}</p></div><p className="font-bold">{money.format(item.total)}</p></div>)}
+            {receipt.tableName && <div className="grid grid-cols-[1fr_auto] gap-3 text-xs"><div><p className="font-bold">Cubiertos</p><p className="mt-0.5 text-[10px] text-[#6c6c6c]">1 × {money.format(0)}</p></div><p className="font-bold">{money.format(0)}</p></div>}
+          </div>
         </section>
 
         <section className="space-y-2 py-4 text-xs">
@@ -81,5 +83,5 @@ export function ReceiptView({ receipt, autoPrint }: { receipt: Receipt; autoPrin
 }
 
 function ReceiptLine({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
-  return <div className="mb-2 flex items-start justify-between gap-4 last:mb-0"><span className="text-[#5f6562]">{label}</span><span className={`text-right ${strong ? "font-black" : "font-semibold"}`}>{value}</span></div>;
+  return <div className="mb-2 flex items-start justify-between gap-4 last:mb-0"><span className="text-[#636363]">{label}</span><span className={`text-right ${strong ? "font-black" : "font-semibold"}`}>{value}</span></div>;
 }

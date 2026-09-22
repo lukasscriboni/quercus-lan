@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { roundDownToPriceStep } from "./pricing";
 
 export type DiscountType = "NONE" | "PERCENT" | "FIXED";
 
@@ -12,6 +13,8 @@ export function calculateDiscount(
   let discount = new Prisma.Decimal(0);
   if (type === "PERCENT") discount = subtotal.mul(Prisma.Decimal.min(value, 100)).div(100);
   if (type === "FIXED") discount = Prisma.Decimal.min(value, subtotal);
-  discount = discount.toDecimalPlaces(2);
-  return { subtotal, discount, total: subtotal.sub(discount).toDecimalPlaces(2) };
+  if (type === "NONE") return { subtotal, discount, total: subtotal };
+  const total = roundDownToPriceStep(subtotal.sub(discount));
+  discount = subtotal.sub(total).toDecimalPlaces(2);
+  return { subtotal, discount, total };
 }

@@ -7,7 +7,7 @@ export async function GET() {
   if ("error" in auth) return auth.error;
 
   const supportedKeys = PERMISSION_CATALOG.map((permission) => permission.key);
-  const roles = await db.role.findMany({
+  const [roles, users] = await Promise.all([db.role.findMany({
     where: { organizationId: auth.user.organizationId },
     orderBy: [{ isSystem: "desc" }, { name: "asc" }],
     select: {
@@ -21,7 +21,11 @@ export async function GET() {
       },
       _count: { select: { users: true } },
     },
-  });
+  }), db.user.findMany({
+    where: { organizationId: auth.user.organizationId },
+    orderBy: { displayName: "asc" },
+    select: { id: true, displayName: true, username: true, isActive: true, createdAt: true, lastLoginAt: true, role: { select: { id: true, name: true } } },
+  })]);
 
   return Response.json({
     currentRole: auth.user.role,
@@ -34,5 +38,6 @@ export async function GET() {
       userCount: role._count.users,
       permissionKeys: role.permissions.map((item) => item.permission.key),
     })),
+    users,
   });
 }

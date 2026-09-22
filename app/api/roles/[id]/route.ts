@@ -5,6 +5,8 @@ import { PERMISSIONS } from "@/lib/permissions";
 import { publishEvent } from "@/lib/realtime";
 
 const bodySchema = z.object({
+  name: z.string().trim().min(2).max(80),
+  description: z.string().trim().max(240).nullable().optional(),
   permissionKeys: z.array(z.enum(PERMISSIONS)).max(Object.keys(PERMISSIONS).length),
 });
 
@@ -27,6 +29,8 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
     },
   });
   if (!role) return Response.json({ error: "El rol no existe" }, { status: 404 });
+  const duplicate = await db.role.findFirst({ where: { organizationId: auth.user.organizationId, id: { not: role.id }, name: { equals: parsed.data.name, mode: "insensitive" } }, select: { id: true } });
+  if (duplicate) return Response.json({ error: "Ya existe otro rol con ese nombre" }, { status: 409 });
 
   const protectsAdministration = role.name === "ADMIN" || role.users.length > 0;
   if (protectsAdministration && !permissionKeys.includes(PERMISSIONS.USERS_MANAGE)) {
@@ -45,6 +49,7 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
   const afterKeys = permissionRows.map((permission) => permission.key).sort();
   await db.$transaction(async (tx) => {
     await tx.rolePermission.deleteMany({ where: { roleId: role.id } });
+    await tx.role.update({ where: { id: role.id }, data: { name: parsed.data.name, description: parsed.data.description || null } });
     if (permissionRows.length > 0) {
       await tx.rolePermission.createMany({
         data: permissionRows.map((permission) => ({ roleId: role.id, permissionId: permission.id })),
@@ -57,13 +62,13 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
         action: "ROLE_PERMISSIONS_UPDATED",
         entityType: "Role",
         entityId: role.id,
-        before: { permissions: beforeKeys },
-        after: { permissions: afterKeys },
+        before: { name: role.name, permissions: beforeKeys },
+        after: { name: parsed.data.name, description: parsed.data.description || null, permissions: afterKeys },
         metadata: { roleName: role.name },
       },
     });
   });
 
   publishEvent("roles.changed", { roleId: role.id });
-  return Response.json({ role: { id: role.id, permissionKeys: afterKeys }, appliesToCurrentUser: role.users.length > 0 });
+  return Response.json({ role: { id: role.id, name: parsed.data.name, description: parsed.data.description || null, permissionKeys: afterKeys }, appliesToCurrentUser: role.users.length > 0 });
 }

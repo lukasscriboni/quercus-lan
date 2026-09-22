@@ -110,19 +110,19 @@ async function main() {
   }
 
   const demoTables = [
-    ["Salón", "Mesa 1", 4, 100, 100, 110, 90, "ROUND"],
-    ["Salón", "Mesa 2", 4, 300, 100, 110, 90, "ROUND"],
-    ["Salón", "Mesa 3", 4, 500, 100, 110, 90, "ROUND"],
-    ["Salón", "Mesa 4", 6, 170, 300, 160, 90, "RECTANGLE"],
-    ["Salón", "Mesa 5", 6, 430, 300, 160, 90, "RECTANGLE"],
-    ["Salón", "Mesa 6", 2, 740, 130, 90, 90, "SQUARE"],
-    ["Patio", "Patio 1", 4, 120, 120, 110, 90, "ROUND"],
-    ["Patio", "Patio 2", 4, 340, 120, 110, 90, "ROUND"],
-    ["Patio", "Patio 3", 6, 150, 330, 160, 90, "RECTANGLE"],
-    ["Patio", "Patio 4", 6, 430, 330, 160, 90, "RECTANGLE"],
-    ["Barra", "Barra 1", 2, 180, 310, 90, 90, "SQUARE"],
-    ["Barra", "Barra 2", 2, 360, 310, 90, 90, "SQUARE"],
-    ["Barra", "Barra 3", 2, 540, 310, 90, 90, "SQUARE"],
+    ["Salón", "Mesa 1", 4, 44, 178, 110, 90, "ROUND"],
+    ["Salón", "Mesa 2", 4, 171, 178, 110, 90, "ROUND"],
+    ["Salón", "Mesa 3", 4, 298, 178, 110, 90, "ROUND"],
+    ["Salón", "Mesa 4", 6, 79, 486, 160, 90, "RECTANGLE"],
+    ["Salón", "Mesa 5", 6, 245, 486, 160, 90, "RECTANGLE"],
+    ["Salón", "Mesa 6", 2, 454, 224, 90, 90, "SQUARE"],
+    ["Patio", "Patio 1", 4, 57, 209, 110, 90, "ROUND"],
+    ["Patio", "Patio 2", 4, 197, 209, 110, 90, "ROUND"],
+    ["Patio", "Patio 3", 6, 65, 532, 160, 90, "RECTANGLE"],
+    ["Patio", "Patio 4", 6, 245, 532, 160, 90, "RECTANGLE"],
+    ["Barra", "Barra 1", 2, 98, 501, 90, 90, "SQUARE"],
+    ["Barra", "Barra 2", 2, 213, 501, 90, 90, "SQUARE"],
+    ["Barra", "Barra 3", 2, 327, 501, 90, 90, "SQUARE"],
   ] as const;
   for (const [sectorName, name, capacity, x, y, width, height, shape] of demoTables) {
     const sectorId = sectors.get(sectorName);
@@ -135,11 +135,11 @@ async function main() {
   }
 
   const floorElements = [
-    { id: "floor_salon_bar", sector: "Salón", type: FloorElementType.BAR, label: "Barra principal", x: 820, y: 80, width: 220, height: 90 },
-    { id: "floor_salon_wall", sector: "Salón", type: FloorElementType.WALL, label: null, x: 690, y: 270, width: 300, height: 24 },
-    { id: "floor_patio_label", sector: "Patio", type: FloorElementType.TEXT, label: "Patio", x: 760, y: 80, width: 180, height: 50 },
-    { id: "floor_patio_decor", sector: "Patio", type: FloorElementType.DECORATION, label: "Planta", x: 780, y: 300, width: 100, height: 100 },
-    { id: "floor_bar_counter", sector: "Barra", type: FloorElementType.BAR, label: "Mostrador", x: 110, y: 90, width: 620, height: 100 },
+    { id: "floor_salon_bar", sector: "Salón", type: FloorElementType.BAR, label: "Barra principal", x: 482, y: 147, width: 220, height: 90 },
+    { id: "floor_salon_wall", sector: "Salón", type: FloorElementType.WALL, label: null, x: 385, y: 422, width: 300, height: 24 },
+    { id: "floor_patio_label", sector: "Patio", type: FloorElementType.TEXT, label: "Patio", x: 450, y: 136, width: 180, height: 50 },
+    { id: "floor_patio_decor", sector: "Patio", type: FloorElementType.DECORATION, label: "Planta", x: 478, y: 488, width: 100, height: 100 },
+    { id: "floor_bar_counter", sector: "Barra", type: FloorElementType.BAR, label: "Mostrador", x: 0, y: 169, width: 620, height: 100 },
   ];
   for (const element of floorElements) {
     const sectorId = sectors.get(element.sector);

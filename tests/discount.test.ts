@@ -10,8 +10,14 @@ describe("descuentos de venta", () => {
 
   it("calcula descuentos por importe", () => {
     const result = calculateDiscount("5250.50", "FIXED", 250);
-    expect(result.discount.toString()).toBe("250");
-    expect(result.total.toString()).toBe("5000.5");
+    expect(result.discount.toString()).toBe("250.5");
+    expect(result.total.toString()).toBe("5000");
+  });
+
+  it("redondea hacia abajo el total con descuento", () => {
+    const result = calculateDiscount(1200, "PERCENT", 10);
+    expect(result.discount.toString()).toBe("200");
+    expect(result.total.toString()).toBe("1000");
   });
 
   it("nunca deja el total negativo", () => {

@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 export function QuantityControl({
   value,
   disabled = false,
+  busy = false,
   min = 1,
   max = 100,
   step = 1,
@@ -14,6 +15,7 @@ export function QuantityControl({
 }: {
   value: number;
   disabled?: boolean;
+  busy?: boolean;
   min?: number;
   max?: number;
   step?: number;
@@ -36,10 +38,13 @@ export function QuantityControl({
 
   const buttonSize = size === "large" ? "h-11 w-11" : "h-9 w-9";
   const valueSize = size === "large" ? "h-14 w-24 text-3xl" : "h-9 w-12 text-sm";
+  const unavailable = disabled || busy;
+  const minusOpacity = disabled || value <= min ? "disabled:opacity-30" : busy ? "" : "disabled:opacity-30";
+  const plusOpacity = disabled || value >= max ? "disabled:opacity-30" : busy ? "" : "disabled:opacity-30";
   return (
     <div className="flex items-center rounded-xl border border-line bg-ink">
-      <button type="button" aria-label="Restar uno" disabled={disabled || value <= min} onClick={() => onChange(Math.max(min, value - step))} className={`grid place-items-center text-[#8f9c95] hover:text-cream disabled:opacity-30 ${buttonSize}`}><Minus className={size === "large" ? "h-5 w-5" : "h-4 w-4"} /></button>
-      {editing && !disabled ? (
+      <button type="button" aria-label="Restar uno" disabled={unavailable || value <= min} onClick={() => onChange(Math.max(min, value - step))} className={`grid place-items-center text-[#989898] hover:text-cream ${minusOpacity} ${buttonSize}`}><Minus className={size === "large" ? "h-5 w-5" : "h-4 w-4"} /></button>
+      {editing && !unavailable ? (
         <input
           autoFocus
           type="number"
@@ -55,12 +60,12 @@ export function QuantityControl({
             if (event.key === "Escape") { cancelBlur.current = true; setDraft(String(value)); setEditing(false); event.currentTarget.blur(); }
           }}
           aria-label="Cantidad"
-          className={`border-x border-line bg-[#101715] text-center font-black text-amber outline-none focus:bg-[#18231f] ${valueSize}`}
+          className={`border-x border-line bg-[#080808] text-center font-black text-amber outline-none focus:bg-[#1b1b1b] ${valueSize}`}
         />
       ) : (
-        <button type="button" disabled={disabled} title="Editar cantidad" aria-label={`Editar cantidad actual: ${value}`} onClick={() => { setDraft(String(value)); setEditing(true); }} className={`border-x border-line text-center font-black text-amber hover:bg-[#1c2924] disabled:cursor-default disabled:text-[#7a8781] ${valueSize}`}>{value.toLocaleString("es-AR")}</button>
+        <button type="button" disabled={unavailable} title="Editar cantidad" aria-label={`Editar cantidad actual: ${value}`} onClick={() => { setDraft(String(value)); setEditing(true); }} className={`border-x border-line text-center font-black text-amber hover:bg-[#252525] disabled:cursor-default ${busy && !disabled ? "" : "disabled:text-[#838383]"} ${valueSize}`}>{value.toLocaleString("es-AR")}</button>
       )}
-      <button type="button" aria-label="Sumar uno" disabled={disabled || value >= max} onClick={() => onChange(Math.min(max, value + step))} className={`grid place-items-center text-[#8f9c95] hover:text-cream disabled:opacity-30 ${buttonSize}`}><Plus className={size === "large" ? "h-5 w-5" : "h-4 w-4"} /></button>
+      <button type="button" aria-label="Sumar uno" disabled={unavailable || value >= max} onClick={() => onChange(Math.min(max, value + step))} className={`grid place-items-center text-[#989898] hover:text-cream ${plusOpacity} ${buttonSize}`}><Plus className={size === "large" ? "h-5 w-5" : "h-4 w-4"} /></button>
     </div>
   );
 }

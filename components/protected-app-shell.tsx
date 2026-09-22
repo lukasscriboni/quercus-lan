@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { AppShell, type ShellUser } from "@/components/app-shell";
 
-const sectionRoutes = ["/dashboard", "/floor", "/direct-sales", "/products", "/stock", "/cash", "/reports", "/roles"];
+const sectionRoutes = ["/dashboard", "/floor", "/kitchen", "/bar", "/direct-sales", "/current-accounts", "/products", "/purchases", "/cash", "/reports", "/roles"];
 
 export function ProtectedAppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -43,7 +43,7 @@ export function ProtectedAppShell({ children }: { children: React.ReactNode }) {
   }, [loadUser]);
 
   if (!user) {
-    return <div className="grid min-h-screen place-items-center bg-[#101715] p-5"><div className="text-center">{error ? <><p className="text-sm font-bold text-danger">{error}</p><button type="button" onClick={() => void loadUser()} className="button-secondary mt-4"><RefreshCw className="h-4 w-4" />Reintentar</button></> : <><LoaderCircle className="mx-auto h-8 w-8 animate-spin text-amber" /><p className="mt-3 text-sm font-semibold text-[#829089]">Preparando la aplicación…</p></>}</div></div>;
+    return <div className="grid min-h-screen place-items-center bg-[#080808] p-5"><div className="text-center">{error ? <><p className="text-sm font-bold text-danger">{error}</p><button type="button" onClick={() => void loadUser()} className="button-secondary mt-4"><RefreshCw className="h-4 w-4" />Reintentar</button></> : <><LoaderCircle className="mx-auto h-8 w-8 animate-spin text-amber" /><p className="mt-3 text-sm font-semibold text-[#8c8c8c]">Preparando la aplicación…</p></>}</div></div>;
   }
 
   return <AppShell user={user}>{children}</AppShell>;

@@ -53,6 +53,14 @@ export async function GET(request: Request) {
     select: { id: true, name: true, taxId: true, contactName: true, phone: true, email: true },
   }) : [];
   const supplierMap = new Map(suppliers.map((supplier) => [supplier.id, supplier]));
+  const purchaseOrderIds = Array.from(new Set(visibleMovements.flatMap((movement) =>
+    movement.referenceType === "PURCHASE_ORDER" && movement.referenceId ? [movement.referenceId] : [],
+  )));
+  const purchaseOrders = purchaseOrderIds.length ? await db.purchaseOrder.findMany({
+    where: { id: { in: purchaseOrderIds }, branch: { organizationId: auth.user.organizationId } },
+    select: { id: true, number: true, supplier: { select: { id: true, name: true, taxId: true, contactName: true, phone: true, email: true } } },
+  }) : [];
+  const purchaseOrderMap = new Map(purchaseOrders.map((order) => [order.id, order]));
 
   return Response.json({
     from: parsed.data.from,
@@ -68,7 +76,10 @@ export async function GET(request: Request) {
       product: movement.product,
       warehouse: movement.warehouse,
       user: movement.user,
-      supplier: movement.referenceId ? supplierMap.get(movement.referenceId) ?? null : null,
+      supplier: movement.referenceId
+        ? supplierMap.get(movement.referenceId) ?? purchaseOrderMap.get(movement.referenceId)?.supplier ?? null
+        : null,
+      purchaseOrderNumber: movement.referenceId ? purchaseOrderMap.get(movement.referenceId)?.number ?? null : null,
     })),
   });
 }

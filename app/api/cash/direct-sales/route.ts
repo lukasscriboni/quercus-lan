@@ -10,6 +10,8 @@ import {
 import { z } from "zod";
 import { requireApiUser } from "@/lib/auth";
 import { calculateDiscount } from "@/lib/discount";
+import { sendOrderItemToKitchen } from "@/lib/kitchen";
+import { enqueueKitchenTicketPrint } from "@/lib/kitchen-print-queue";
 import { lineTotal, serializable } from "@/lib/order-service";
 import { applyOrderStockDelta } from "@/lib/order-stock";
 import { PERMISSIONS } from "@/lib/permissions";
@@ -94,6 +96,7 @@ export async function POST(request: Request) {
       });
 
       let stockChanged = false;
+      const kitchenPrintJobs: Array<{ ticketId: string; itemId: string }> = [];
       for (const line of lines) {
         const orderItem = await tx.orderItem.create({
           data: {
@@ -105,7 +108,7 @@ export async function POST(request: Request) {
             unitPrice: line.product.price,
             costSnapshot: line.product.cost,
             total: line.total,
-            status: OrderItemStatus.DELIVERED,
+            status: line.product.kitchenStationId ? OrderItemStatus.PENDING : OrderItemStatus.DELIVERED,
           },
         });
         stockChanged = (await applyOrderStockDelta(tx, {
@@ -117,6 +120,16 @@ export async function POST(request: Request) {
           quantityDelta: line.quantity,
           userId: auth.user.id,
         })) || stockChanged;
+        if (line.product.kitchenStationId) {
+          const ticketId = await sendOrderItemToKitchen(tx, {
+            orderId: order.id,
+            orderNumber: order.number,
+            orderItemId: orderItem.id,
+            kitchenStationId: line.product.kitchenStationId,
+            quantity: line.quantity,
+          });
+          if (ticketId) kitchenPrintJobs.push({ ticketId, itemId: orderItem.id });
+        }
       }
 
       const payment = await tx.payment.create({
@@ -150,12 +163,16 @@ export async function POST(request: Request) {
           metadata: { paymentId: payment.id, cashShiftId: shift.id },
         },
       });
-      return { order, payment, methodName: method.name, stockChanged };
+      return { order, payment, methodName: method.name, stockChanged, kitchenPrintJobs };
     });
 
     publishEvent("orders.changed", { orderId: result.order.id });
     publishEvent("cash.changed", { shiftId: result.payment.cashShiftId, orderId: result.order.id });
     if (result.stockChanged) publishEvent("stock.changed", { orderId: result.order.id });
+    if (result.kitchenPrintJobs.length) {
+      publishEvent("kitchen.changed", { orderId: result.order.id });
+      for (const job of result.kitchenPrintJobs) void enqueueKitchenTicketPrint(job.ticketId, [job.itemId]).catch(() => undefined);
+    }
     publishEvent("dashboard.changed", { orderId: result.order.id });
     return Response.json({
       sale: {

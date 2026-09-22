@@ -40,14 +40,14 @@ export function ConnectionStatus() {
 
   return (
     <>
-      <div className="flex items-center gap-2 text-xs font-semibold text-[#91a099]">
+      <div className="flex items-center gap-2 text-xs font-semibold text-[#9c9c9c]">
         <span className={`h-2 w-2 rounded-full ${connected ? "live-dot bg-mint" : "bg-danger"}`} />
         {connected ? "Servidor local" : "Reconectando"}
       </div>
       {!connected && (
-        <div role="status" className="fixed bottom-5 left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 items-center gap-3 rounded-2xl border border-danger/30 bg-[#2b1d19] px-4 py-3.5 shadow-2xl">
+        <div role="status" className="fixed bottom-5 left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 items-center gap-3 rounded-2xl border border-danger/30 bg-[#202020] px-4 py-3.5 shadow-2xl">
           <WifiOff className="h-5 w-5 shrink-0 text-danger" />
-          <div><p className="text-sm font-bold">Sin conexión con el servidor local</p><p className="text-xs text-[#c59e95]">{reconnecting ? "Reintentando automáticamente. No cierres esta pantalla." : "Verificá la red del establecimiento."}</p></div>
+          <div><p className="text-sm font-bold">Sin conexión con el servidor local</p><p className="text-xs text-[#a7a7a7]">{reconnecting ? "Reintentando automáticamente. No cierres esta pantalla." : "Verificá la red del establecimiento."}</p></div>
         </div>
       )}
     </>

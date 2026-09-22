@@ -8,6 +8,10 @@ export type NavigableTable = {
   height: number;
 };
 
+export function shouldAutoOpenTable(table: { status: string; activeOrder: unknown | null }) {
+  return table.status === "AVAILABLE" && table.activeOrder === null;
+}
+
 function center(table: NavigableTable) {
   return {
     x: table.x + table.width / 2,

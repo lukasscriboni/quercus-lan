@@ -35,6 +35,12 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
       const before = await tx.order.findFirst({ where: { id, branch: { organizationId: auth.user.organizationId } } });
       if (!before) throw new Error("NOT_FOUND");
       if (!ACTIVE_ORDER_STATUSES.some((status) => status === before.status)) throw new Error("CLOSED");
+      if (parsed.data.status === OrderStatus.BILL_REQUESTED) {
+        const pendingKitchenItems = await tx.orderItem.count({
+          where: { orderId: id, status: OrderItemStatus.PENDING, kitchenStationId: { not: null } },
+        });
+        if (pendingKitchenItems > 0) throw new Error("KITCHEN_PENDING");
+      }
       const changed = await tx.order.updateMany({
         where: { id, version: parsed.data.version },
         data: {
@@ -72,6 +78,7 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
     const message = error instanceof Error ? error.message : "";
     if (message === "NOT_FOUND") return Response.json({ error: "Cuenta inexistente" }, { status: 404 });
     if (message === "CLOSED") return Response.json({ error: "La cuenta ya está cerrada" }, { status: 409 });
+    if (message === "KITCHEN_PENDING") return Response.json({ error: "Primero enviá las consumiciones pendientes a Cocina" }, { status: 409 });
     if (message === "CONFLICT") return Response.json({ error: "La cuenta cambió en otra terminal. Se actualizaron los datos." }, { status: 409 });
     return Response.json({ error: "No se pudo actualizar la cuenta" }, { status: 409 });
   }

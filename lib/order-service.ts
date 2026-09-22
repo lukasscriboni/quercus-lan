@@ -8,7 +8,7 @@ export const ACTIVE_ORDER_STATUSES = [
   OrderStatus.BILL_REQUESTED,
 ] as const;
 
-export const editableOrderStatuses = [OrderStatus.OPEN, OrderStatus.IN_PROGRESS] as const;
+export const editableOrderStatuses = [OrderStatus.OPEN, OrderStatus.IN_PROGRESS, OrderStatus.READY] as const;
 
 export type TableReleaseBlocker = "CLOSED" | "NOT_EMPTY" | "HAS_PAYMENT" | null;
 
@@ -24,7 +24,10 @@ export const orderDetailsInclude = Prisma.validator<Prisma.OrderInclude>()({
   openedBy: { select: { id: true, displayName: true } },
   items: {
     orderBy: { createdAt: "asc" },
-    include: { product: { select: { id: true, categoryId: true } } },
+    include: {
+      product: { select: { id: true, categoryId: true } },
+      kitchenStation: { select: { id: true, name: true, type: true } },
+    },
   },
 });
 
@@ -49,6 +52,7 @@ export function serializeOrder(order: OrderWithDetails) {
     tax: order.tax.toString(),
     total: order.total.toString(),
     notes: order.notes,
+    internalLabel: order.internalLabel,
     version: order.version,
     openedAt: order.openedAt,
     table: order.diningTable ? { id: order.diningTable.id, name: order.diningTable.name, sector: order.diningTable.sector } : null,
@@ -56,6 +60,8 @@ export function serializeOrder(order: OrderWithDetails) {
     items: order.items.map((item) => ({
       id: item.id,
       productId: item.productId,
+      kitchenStationId: item.kitchenStationId,
+      kitchenStation: item.kitchenStation,
       categoryId: item.product.categoryId,
       name: item.nameSnapshot,
       quantity: item.quantity.toString(),
@@ -84,7 +90,7 @@ export async function recalculateOrder(tx: Prisma.TransactionClient, orderId: st
     data: {
       subtotal,
       total,
-      ...(markInProgress && order.status === OrderStatus.OPEN ? { status: OrderStatus.IN_PROGRESS } : {}),
+      ...(markInProgress && (order.status === OrderStatus.OPEN || order.status === OrderStatus.READY) ? { status: OrderStatus.IN_PROGRESS } : {}),
       version: { increment: 1 },
     },
   });
