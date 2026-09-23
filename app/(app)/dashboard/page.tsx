@@ -38,7 +38,7 @@ export default function DashboardPage() {
   return (
     <div className="mx-auto max-w-[1500px]">
       <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
-        <div className="flex items-center gap-4"><BrandMark size="large" /><div><p className="eyebrow mb-2">Sucursal principal</p><h1 className="text-3xl font-black tracking-[-.035em] sm:text-4xl">Pulso del local</h1><p className="mt-2 text-sm text-[#a1a1a1]">Información compartida por todas las terminales de la red.</p></div></div>
+        <div className="flex items-center gap-4"><BrandMark size="large" /><div><p className="eyebrow mb-2">Sucursal principal</p><h1 className="text-3xl font-black tracking-[-.035em] sm:text-4xl">Movimiento del local</h1><p className="mt-2 text-sm text-[#a1a1a1]">Información compartida por todas las terminales de la red.</p></div></div>
         <button onClick={load} className="button-secondary"><RefreshCw className="h-4 w-4" />Actualizar</button>
       </div>
       {error && <div className="mb-5 rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-[#ffb4a5]">{error}</div>}
