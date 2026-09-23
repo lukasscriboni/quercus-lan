@@ -39,7 +39,7 @@ export function LoginScreen() {
         <div className="relative max-w-xl">
           <p className="eyebrow mb-5">La jornada, bajo control</p>
           <h1 className="text-5xl font-black leading-[1.04] tracking-[-.04em] xl:text-6xl">Todo el bar.<br /><span className="text-amber">En tu propia red.</span></h1>
-          <p className="mt-6 max-w-lg text-lg leading-relaxed text-[#afafaf]">Caja, cocina, mozos y administración trabajando sobre la misma información, incluso cuando Internet no está.</p>
+          <p className="mt-6 max-w-lg text-lg leading-relaxed text-[#afafaf]">Caja, cocina, mozos y administración trabajando sobre la misma información.</p>
         </div>
         <div className="relative flex gap-8 text-sm text-[#8e8e8e]">
           <span className="flex items-center gap-2"><Router className="h-4 w-4 text-mint" /> 100% LAN</span>
