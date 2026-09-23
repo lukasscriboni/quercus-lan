@@ -53,7 +53,7 @@ export function LoginScreen() {
             <div className="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-line bg-panel text-amber"><LockKeyhole className="h-5 w-5" /></div>
             <p className="eyebrow mb-2">Acceso al sistema</p>
             <h2 className="text-3xl font-black tracking-[-.03em]">Bienvenido a la jornada</h2>
-            <p className="mt-2 text-sm text-[#999999]">Ingresá con tu usuario asignado. No se necesita Internet.</p>
+            <p className="mt-2 text-sm text-[#999999]">Ingresá con tu usuario asignado.</p>
           </div>
           <form onSubmit={submit} className="surface p-5 sm:p-6">
             <label className="mb-5 block"><span className="mb-2 block text-xs font-semibold text-[#a4a4a4]">Usuario</span><input className="field" value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" autoFocus placeholder="Ej. cajero" /></label>
